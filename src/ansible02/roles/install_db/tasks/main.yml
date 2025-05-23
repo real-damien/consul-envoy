@@ -1,0 +1,27 @@
+---
+- name: "Check OS family and version"
+  ansible.builtin.assert:
+    success_msg: "The operating system {{ ansible_distribution }}:{{ ansible_distribution_release }} is supported"
+    fail_msg: "The operating system ({{ ansible_distribution }}:{{ ansible_distribution_release }}) is not supported"
+    that:
+      "(ansible_distribution == 'Ubuntu' and (ansible_distribution_release == 'jammy' or ansible_distribution_release == 'focal')) or \
+      (ansible_distribution == 'Debian' and (ansible_distribution_release == 'bookworm' or ansible_distribution_release == 'bullseye'))"
+    quiet: true
+
+- name: "Install dependencies"
+  ansible.builtin.apt:
+    pkg:
+      [
+        "apt-transport-https",
+        "ca-certificates",
+        "software-properties-common",
+        "gpg",
+        "curl",
+        "net-tools",
+        "vim",
+        "tree",
+      ]
+    state: latest
+    update_cache: yes
+
+- include_tasks: postgres.yml

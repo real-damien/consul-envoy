@@ -1,0 +1,84 @@
+---
+- name: Ensure hotel service directory exists
+  file:
+    path: "{{ hotels_service_dir }}"
+    state: directory
+    owner: "{{ ansible_user | default('root') }}"
+    mode: "0755"
+
+- name: Copy hotels service sources
+  copy:
+    src: hotels-service/
+    dest: "{{ hotels_service_dir }}/"
+    owner: "{{ ansible_user | default('root') }}"
+    mode: "0755"
+  notify: Restart hotels-service
+
+- name: Install OpenJDK 8
+  apt:
+    name: openjdk-8-jdk
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Download Maven dependencies (go-offline)
+  command: ./mvnw dependency:go-offline
+  args:
+    chdir: "{{ hotels_service_dir }}/"
+  environment:
+    JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-arm64"
+  register: go_offline_result
+
+- name: Build hotel-service jar via Maven Wrapper
+  command: ./mvnw clean package -DskipTests
+  args:
+    chdir: "{{ hotels_service_dir }}/"
+  environment:
+    JAVA_HOME: "/usr/lib/jvm/java-8-openjdk-arm64"
+  register: build_result
+
+- name: Set global environment variables for hotel service
+  blockinfile:
+    path: /etc/environment
+    marker: "# {mark} HOTELS ENV VARS"
+    block: |
+      POSTGRES_HOST="127.0.0.1"
+      POSTGRES_PORT="5432"
+      POSTGRES_DB="{{ db_name }}"
+      POSTGRES_USER="{{ postgres_user }}"
+      POSTGRES_PASSWORD="{{ postgres_password }}"
+  become: true
+
+- name: Find hotel service jar file
+  find:
+    paths: "{{ hotels_service_dir }}/target/"
+    patterns: "*.jar"
+    use_regex: false
+  register: jar_list
+
+- name: Create systemd service file for hotel-service
+  copy:
+    dest: /etc/systemd/system/hotels-service.service
+    content: |
+      [Unit]
+      Description=Hotel Service
+      After=envoy.service
+
+      [Service]
+      Type=simple
+      EnvironmentFile=/etc/environment
+      Restart=on-failure
+      ExecStart=/usr/bin/java -jar {{ jar_list.files[0].path }}
+
+      [Install]
+      WantedBy=envoy.service
+
+  become: true
+  notify: Reload systemd
+
+- name: Enable and start hotels-service daemon
+  systemd:
+    name: hotels-service
+    enabled: yes
+    state: started
+  become: true

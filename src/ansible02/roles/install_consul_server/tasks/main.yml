@@ -1,0 +1,94 @@
+---
+- name: Ensure apt-transport-https and gnupg are present
+  apt:
+    name:
+      - apt-transport-https
+      - gnupg
+    state: present
+    update_cache: true
+
+- name: Download and add HashiCorp GPG key
+  ansible.builtin.shell: |
+    wget -O - https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  become: true
+
+- name: Add HashiCorp apt repo dynamically
+  ansible.builtin.shell: |
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list
+  args:
+    creates: /etc/apt/sources.list.d/hashicorp.list
+  become: true
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+
+- name: Install Consul
+  ansible.builtin.apt:
+    name: consul
+    state: present
+    update_cache: true
+  become: true
+
+- name: Ensure consul group exists
+  ansible.builtin.group:
+    name: consul
+    system: yes
+  become: true
+
+- name: Ensure consul user exists
+  ansible.builtin.user:
+    name: consul
+    group: consul
+    system: yes
+    shell: /usr/sbin/nologin
+    create_home: no
+  become: true
+
+- name: Create Consul config dir
+  file:
+    path: /etc/consul.d
+    state: directory
+    owner: consul
+    group: consul
+    mode: "0755"
+
+- name: Copy consul server file
+  ansible.builtin.copy:
+    src: "consul_server.hcl"
+    dest: "/etc/consul.d/consul.hcl"
+    owner: consul
+    group: consul
+
+- name: Ensure consul data dir exists and has correct permissions
+  ansible.builtin.file:
+    path: /var/lib/consul
+    state: directory
+    owner: consul
+    group: consul
+    mode: "0750"
+  become: true
+
+- name: create systemd service for Consul
+  copy:
+    src: "consul.service"
+    dest: "/etc/systemd/system/consul.service"
+    owner: consul
+    group: consul
+
+- name: Ensure consul service is started and enabled
+  ansible.builtin.systemd:
+    name: consul
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Setting ip addr to consul file
+  ansible.builtin.shell: |
+    sed -i "s/SELECT_SERVER_IP/$(hostname -I | awk '{print $2}')/g" /etc/consul.d/consul.hcl
+  args:
+    executable: /bin/bash
+  become: true

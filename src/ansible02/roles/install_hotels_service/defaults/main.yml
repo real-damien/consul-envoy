@@ -1,0 +1,4 @@
+postgres_user: postgres
+postgres_password: postgres
+db_name: hotels_db
+hotels_service_dir: /opt/hotels-service

@@ -1,0 +1,29 @@
+{
+    "service": {
+        "name": "db-proxy",
+        "port": 5432,
+        "tags": [
+            "sql",
+            "database"
+        ],
+        "connect": {
+            "sidecar_service": {
+                "proxy": {
+                    "upstreams": [
+                        {
+                            "destination_name": "api-proxy",
+                            "local_bind_port": 8082
+                        }
+                    ]
+                }
+            }
+        },
+        "check": {
+            "id": "db-proxy-check",
+            "name": "Postgresql tcp check",
+            "tcp": "localhost:5432",
+            "interval": "10s",
+            "timeout": "5s"
+        }
+    }
+}

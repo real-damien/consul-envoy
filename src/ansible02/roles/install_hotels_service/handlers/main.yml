@@ -1,0 +1,10 @@
+---
+- name: Reload systemd
+  command: systemctl daemon-reload
+  become: true
+
+- name: Restart hotels-service
+  systemd:
+    name: hotels-service
+    state: restarted
+  become: true

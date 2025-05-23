@@ -1,0 +1,13 @@
+---
+- name: Deploy microservices application
+  hosts: node01
+  become: true
+  roles:
+    - application
+
+- name: Deploy apache and postgres
+  hosts: node02
+  become: true
+  roles:
+    - apache
+    - postgres

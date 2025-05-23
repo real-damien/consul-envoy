@@ -1,0 +1,20 @@
+---
+- name: "Install PostgreSQL and dependencies"
+  ansible.builtin.apt:
+    pkg: ["postgresql", "libpq-dev", "python3-psycopg2", "acl"]
+    state: present
+    update_cache: true
+  notify: "Start PostgreSQL"
+
+- name: "Create hotels_db"
+  become_user: "{{ postgres_user }}"
+  community.postgresql.postgresql_db:
+    name: "{{ db_name }}"
+    state: present
+
+- name: "Change password for postgres"
+  become_user: "{{ postgres_user }}"
+  community.postgresql.postgresql_user:
+    name: "{{ postgres_user }}"
+    password: "{{ postgres_user }}"
+    encrypted: true

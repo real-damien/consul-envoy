@@ -1,0 +1,11 @@
+---
+- name: Install Apache
+  apt:
+    name: apache2
+    state: present
+
+- name: Ensure Apache is running
+  systemd:
+    name: apache2
+    state: started
+    enabled: yes

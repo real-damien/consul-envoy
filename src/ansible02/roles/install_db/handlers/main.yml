@@ -1,0 +1,11 @@
+---
+- name: "Start PostgreSQL"
+  ansible.builtin.systemd:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: "Stop PostgreSQL"
+  ansible.builtin.systemd:
+    name: postgresql
+    state: stopped
